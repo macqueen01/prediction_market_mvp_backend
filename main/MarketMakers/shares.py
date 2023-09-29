@@ -1,5 +1,8 @@
 
-class BinaryShare(object):
+
+class Share(object):
+    pass
+class BinaryShare(Share):
     def __call__(self):
         return {
             'share_type': self.share_type,

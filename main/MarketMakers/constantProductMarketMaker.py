@@ -41,7 +41,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'returned_shares': returned_shares
         }
     
-    def remove_shares_from_positive_then_calculate_shares(self, shares):
+    def remove_fund_from_positive_then_calculate_shares(self, shares):
         assert(type(shares) == BinaryShare)
         assert(shares.share_type == 'positive')
 
@@ -77,7 +77,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'returned_shares': returned_shares
         }
     
-    def remove_shares_from_negative_then_calculate_shares(self, shares):
+    def remove_fund_from_negative_then_calculate_shares(self, shares):
         assert(type(shares) == BinaryShare)
         assert(shares.share_type == 'negative')
 

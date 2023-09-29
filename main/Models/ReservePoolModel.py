@@ -32,10 +32,21 @@ class ReservePool(models.Model):
     def get_total(self):
         return self._total
     
+    def get_constant(self):
+        return self._positive * self._negative
+    
+    def set_shares(self, positive, negative):
+        assert(positive * negative == self.get_constant())
+
+        self._positive = positive
+        self._negative = negative
+        self._total = positive + negative
+        self.save()
+        return self
+    
     objects = ReservePoolManager()
     
     class Meta:
-        db_table = 'reserve_pool'
-        fields = ['_yes', '_no', '_total', '_constant']
+        fields = ['_positive', '_negative', '_total']
 
     

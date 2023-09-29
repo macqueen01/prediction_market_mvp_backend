@@ -15,12 +15,12 @@ class MarketMakerInterface(object):
     def add_fund_to_positive_then_calculate_shares(self, fund):
         raise NotImplementedError()
     
-    def remove_shares_from_positive_then_calculate_shares(self, shares):
+    def remove_fund_from_positive_then_calculate_shares(self, shares):
         raise NotImplementedError()
     
     def add_fund_to_negative_then_calculate_shares(self, fund):
         raise NotImplementedError()
     
-    def remove_shares_from_negative_then_calculate_shares(self, shares):
+    def remove_fund_from_negative_then_calculate_shares(self, shares):
         raise NotImplementedError()
     

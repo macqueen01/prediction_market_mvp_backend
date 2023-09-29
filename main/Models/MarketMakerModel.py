@@ -1,5 +1,6 @@
 from django.db import models
 from main.MarketMakers import ConstantProductMarketMaker
+from main.MarketMakers.shares import Share
 
 
 MARKET_MAKER_TYPE = {
@@ -25,8 +26,38 @@ class MarketMaker(models.Model):
     initial_negative_probability = models.FloatField(default = 0.5)
     
     objects = MarketMakerManager()
-
+    
     def _get_market_maker_interactor(self):
-        market_maker = MARKET_MAKER_TYPE.get(self.market_maker_type)
-        market_maker = market_maker()
+        """
+        Returns the market maker interactor under current share circumstances
+        """
+        market_maker = self._get_market_maker_interactor()
+        market_maker.set_num_shares(self.num_positive, self.num_negative)
+        return market_maker
+    
+    def simulate_positive_buy(self, fund):
+        market_maker = self._get_market_maker_interactor()
+        return market_maker.add_fund_to_positive_then_calculate_shares(fund)
+    
+    def simulate_negative_buy(self, fund):
+        market_maker = self._get_market_maker_interactor()
+        return market_maker.add_fund_to_negative_then_calculate_shares(fund)
+    
+    def simulate_sell(self, shares):
+        # Check if shares is a valid share object
+        assert(issubclass(type(shares), Share))
+
+        market_maker = self._get_market_maker_interactor()
+        if (shares.share_type == 'positive'):
+            return market_maker.remove_fund_from_positive_then_calculate_shares(shares)
+        elif (shares.share_type == 'negative'):
+            return market_maker.remove_fund_from_negative_then_calculate_shares(shares)
+        raise ValueError('Invalid share type')
+    
+
+    
+    
+    
+
+        
 
