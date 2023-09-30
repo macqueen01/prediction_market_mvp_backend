@@ -15,6 +15,7 @@ class ReservePoolManager(models.Manager):
             _total = initial_positive + initial_negative,
         )
 
+        reserve_pool.save()
         return reserve_pool
         
 
@@ -43,6 +44,12 @@ class ReservePool(models.Model):
         self._total = positive + negative
         self.save()
         return self
+    
+    def get_current_shares(self):
+        return {
+            'positive_shares': self.get_positive(),
+            'negative_shares': self.get_negative(),
+        }
     
     objects = ReservePoolManager()
     

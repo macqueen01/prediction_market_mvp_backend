@@ -1,14 +1,35 @@
 from django.db import models
-from main.MarketMakers import ConstantProductMarketMaker
+from main.MarketMakers.interface import MarketMakerInterface
 from main.MarketMakers.shares import Share
-
-
-MARKET_MAKER_TYPE = {
-    'binary_constant_product': ConstantProductMarketMaker,
-}
+from main.PredictionMarkets.settings import MarketSettings
 
 class MarketMakerManager(models.Manager):
-    def create_market_maker(self, marker_maker_type, initial_fund, cap_price, initial_positive_probability, initial_negative_probability):
+
+    def create_market_maker(self, settings: MarketSettings):
+        """
+        settings is MarketSettings object
+        """
+        market_maker_type = settings.market_maker_type
+        initial_fund = settings.initial_fund
+        cap_price = settings.cap_price
+        initial_positive_probability = settings.initial_positive_probability
+        initial_negative_probability = settings.initial_negative_probability
+        
+        return self._create_market_maker(
+            market_maker_type,
+            initial_fund,
+            cap_price,
+            initial_positive_probability,
+            initial_negative_probability
+        )
+    
+    def _create_market_maker(self, 
+                            marker_maker_type, 
+                            initial_fund, 
+                            cap_price, 
+                            initial_positive_probability, 
+                            initial_negative_probability):
+        
         market_maker = self.create(
             market_maker_type = marker_maker_type,
             initial_fund = initial_fund,
@@ -16,6 +37,7 @@ class MarketMakerManager(models.Manager):
             initial_positive_probability = initial_positive_probability,
             initial_negative_probability = initial_negative_probability
         )
+        market_maker.save()
         return market_maker
 
 class MarketMaker(models.Model):
@@ -27,7 +49,7 @@ class MarketMaker(models.Model):
     
     objects = MarketMakerManager()
     
-    def _get_market_maker_interactor(self):
+    def _get_market_maker_interactor(self) -> MarketMakerInterface:
         """
         Returns the market maker interactor under current share circumstances
         """
@@ -35,15 +57,19 @@ class MarketMaker(models.Model):
         market_maker.set_num_shares(self.num_positive, self.num_negative)
         return market_maker
     
-    def simulate_positive_buy(self, fund):
+    def get_num_shares(self) -> dict(str, float):
+        market_maker = self._get_market_maker_interactor()
+        return market_maker.get_num_shares()
+    
+    def simulate_positive_buy(self, fund) -> Share:
         market_maker = self._get_market_maker_interactor()
         return market_maker.add_fund_to_positive_then_calculate_shares(fund)
     
-    def simulate_negative_buy(self, fund):
+    def simulate_negative_buy(self, fund) -> Share:
         market_maker = self._get_market_maker_interactor()
         return market_maker.add_fund_to_negative_then_calculate_shares(fund)
     
-    def simulate_sell(self, shares):
+    def simulate_sell(self, shares: Share) -> float:
         # Check if shares is a valid share object
         assert(issubclass(type(shares), Share))
 
@@ -53,6 +79,13 @@ class MarketMaker(models.Model):
         elif (shares.share_type == 'negative'):
             return market_maker.remove_fund_from_negative_then_calculate_shares(shares)
         raise ValueError('Invalid share type')
+    
+    def get_estimated_price_per_share(self, shares: Share) -> float:
+        # Check if shares is a valid share object
+        assert(issubclass(type(shares), Share))
+
+        market_maker = self._get_market_maker_interactor()
+        return market_maker.price_calculate_based_on_probabilities(shares) / shares.share_amount
     
 
     
