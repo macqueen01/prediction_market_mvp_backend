@@ -57,7 +57,7 @@ class MarketMaker(models.Model):
         market_maker.set_num_shares(self.num_positive, self.num_negative)
         return market_maker
     
-    def get_num_shares(self) -> dict(str, float):
+    def get_num_shares(self) -> dict:
         market_maker = self._get_market_maker_interactor()
         return market_maker.get_num_shares()
     
@@ -80,14 +80,17 @@ class MarketMaker(models.Model):
             return market_maker.remove_fund_from_negative_then_calculate_shares(shares)
         raise ValueError('Invalid share type')
     
-    def get_estimated_price_per_share(self, shares: Share) -> float:
-        # Check if shares is a valid share object
-        assert(issubclass(type(shares), Share))
+    def get_estimated_price_per_share(self) -> dict:
 
         market_maker = self._get_market_maker_interactor()
-        return market_maker.price_calculate_based_on_probabilities(shares) / shares.share_amount
+        return market_maker.estimated_price_for_single_share()
     
-
+    def get_exact_price_per_share(self) -> dict:
+        """
+        Calculates the exact price for one share at the given reserve pool state
+        """
+        market_maker = self._get_market_maker_interactor()
+        return market_maker.price_for_single_share()
     
     
     

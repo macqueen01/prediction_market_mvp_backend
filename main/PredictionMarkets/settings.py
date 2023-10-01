@@ -19,4 +19,3 @@ class MarketSettings(object):
             self.market_maker_type = 'binary_constant_product'
         else:
             raise NotImplementedError('Only binary constant product market maker is supported at the moment')
-        

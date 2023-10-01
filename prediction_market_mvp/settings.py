@@ -25,12 +25,13 @@ SECRET_KEY = 'django-insecure-lf8ht!+$e3rnn@$gns$30wfe*4t!e$9b(l%!y$6-fdh=1i6zcb
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'main.apps.MainConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -110,6 +111,10 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+# Model Defaults
+
+AUTH_USER_MODEL = 'main.user'
 
 
 # Static files (CSS, JavaScript, Images)

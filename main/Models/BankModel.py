@@ -4,7 +4,7 @@ from django.db import models
 # This BankModel should be used to store the bank's information
 # and be created only once in the database and called by the Bank singleton only.
 
-class _BankModel(models.Model):
+class BankModel(models.Model):
     # total balance is the sum of the reserved balance, the liquidity balance, and the uncategorized balance
     total_balance = models.FloatField(default = 0)
 
@@ -25,12 +25,6 @@ class _BankModel(models.Model):
 
     class Meta:
         db_table = 'bank'
-        fields = [
-            'total_balance', 
-            'reserved_balance', 
-            'liquidity_balance',
-            'uncategorized_balance'
-            ]
 
 
 class Bank(object):
@@ -40,7 +34,7 @@ class Bank(object):
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(Bank, cls).__new__(cls)
-            cls._bank = _BankModel.objects.get_or_create(id = 1)[0]
+            cls._bank = BankModel.objects.get_or_create(id = 1)[0]
         return cls._instance
     
     def _safe_check(self):

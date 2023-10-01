@@ -15,7 +15,10 @@ class MarketMakerInterface(object):
     def price_calculate(self, shares) -> float:
         raise NotImplementedError()
     
-    def price_calculate_based_on_probabilities(self, shares: Share) -> float:
+    def estimated_price_for_single_share(self) -> dict:
+        raise NotImplementedError()
+    
+    def price_for_single_share(self) -> dict:
         raise NotImplementedError()
     
     def add_fund_to_positive_then_calculate_shares(self, fund: float) -> Share:
@@ -30,9 +33,9 @@ class MarketMakerInterface(object):
     def remove_fund_from_negative_then_calculate_shares(self, shares: Share) -> float:
         raise NotImplementedError()
     
-    def get_num_shares(self) -> dict(str, float):
+    def get_num_shares(self) -> dict:
         raise NotImplementedError()
     
-    def set_num_shares(self, num_positive: float, num_negative: float) -> dict(str, float):
+    def set_num_shares(self, num_positive: float, num_negative: float) -> dict:
         raise NotImplementedError()
     
