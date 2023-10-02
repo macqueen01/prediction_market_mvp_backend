@@ -1,7 +1,8 @@
 from django.db import models
 from main.MarketMakers.interface import MarketMakerInterface
-from main.MarketMakers.shares import Share
+from main.MarketMakers.shares import Share, SharePoolState
 from main.PredictionMarkets.settings import MarketSettings
+from main.MarketMakers.settings import MARKET_MAKER_TYPE
 
 class MarketMakerManager(models.Manager):
 
@@ -49,47 +50,43 @@ class MarketMaker(models.Model):
     
     objects = MarketMakerManager()
     
-    def _get_market_maker_interactor(self) -> MarketMakerInterface:
+    def _get_market_maker_interactor(self, pool_state: SharePoolState) -> MarketMakerInterface:
         """
         Returns the market maker interactor under current share circumstances
         """
-        market_maker = self._get_market_maker_interactor()
-        market_maker.set_num_shares(self.num_positive, self.num_negative)
+        market_maker = MARKET_MAKER_TYPE.get(self.market_maker_type)(self.initial_fund, self.cap_price, self.initial_positive_probability, self.initial_negative_probability)
+        market_maker.set_num_shares(pool_state=pool_state)
         return market_maker
     
-    def get_num_shares(self) -> dict:
-        market_maker = self._get_market_maker_interactor()
-        return market_maker.get_num_shares()
-    
-    def simulate_positive_buy(self, fund) -> Share:
-        market_maker = self._get_market_maker_interactor()
+    def simulate_positive_buy(self, fund, pool_state: SharePoolState) -> Share:
+        market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         return market_maker.add_fund_to_positive_then_calculate_shares(fund)
     
-    def simulate_negative_buy(self, fund) -> Share:
-        market_maker = self._get_market_maker_interactor()
+    def simulate_negative_buy(self, fund, pool_state: SharePoolState) -> Share:
+        market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         return market_maker.add_fund_to_negative_then_calculate_shares(fund)
     
-    def simulate_sell(self, shares: Share) -> float:
+    def simulate_sell(self, shares: Share, pool_state: SharePoolState) -> float:
         # Check if shares is a valid share object
         assert(issubclass(type(shares), Share))
 
-        market_maker = self._get_market_maker_interactor()
+        market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         if (shares.share_type == 'positive'):
             return market_maker.remove_fund_from_positive_then_calculate_shares(shares)
         elif (shares.share_type == 'negative'):
             return market_maker.remove_fund_from_negative_then_calculate_shares(shares)
         raise ValueError('Invalid share type')
     
-    def get_estimated_price_per_share(self) -> dict:
+    def get_estimated_price_per_share(self, pool_state: SharePoolState) -> dict:
 
-        market_maker = self._get_market_maker_interactor()
+        market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         return market_maker.estimated_price_for_single_share()
     
-    def get_exact_price_per_share(self) -> dict:
+    def get_exact_price_per_share(self, pool_state: SharePoolState) -> dict:
         """
         Calculates the exact price for one share at the given reserve pool state
         """
-        market_maker = self._get_market_maker_interactor()
+        market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         return market_maker.price_for_single_share()
     
     

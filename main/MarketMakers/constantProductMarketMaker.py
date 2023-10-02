@@ -1,4 +1,4 @@
-from .shares import BinaryShare, Share
+from .shares import BinaryShare, BinarySharePoolState, Share
 from .interface import MarketMakerInterface
 
 from main.utils import equationroots
@@ -29,7 +29,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
         
         return delta_price
     
-    def estimated_price_for_single_share(self) -> dict(str, float):
+    def estimated_price_for_single_share(self) -> dict:
         positive_price_rate = self.num_negative / (self.num_positive + self.num_negative)
         negative_price_rate = self.num_positive / (self.num_positive + self.num_negative)
 
@@ -41,7 +41,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'negative_share_price': negative_price
         }
     
-    def price_for_single_share(self) -> dict(str, float):
+    def price_for_single_share(self) -> dict:
         positive_share = BinaryShare(share_type='positive', share_amount=1)
         negative_share = BinaryShare(share_type='negative', share_amount=1)
 
@@ -53,7 +53,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'negative_share_price': negative_share_price
         }
 
-    def add_fund_to_positive_then_calculate_shares(self, fund: float) -> dict(str, float, Share):
+    def add_fund_to_positive_then_calculate_shares(self, fund: float) -> dict:
         num_shares = fund / self.cap_price
 
         num_positive = self.num_positive + num_shares
@@ -70,7 +70,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'returned_shares': returned_shares
         }
     
-    def remove_fund_from_positive_then_calculate_shares(self, shares: Share) -> dict(str, float):
+    def remove_fund_from_positive_then_calculate_shares(self, shares: Share) -> dict:
         assert(type(shares) == BinaryShare)
         assert(shares.share_type == 'positive')
 
@@ -88,7 +88,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
         }
     
 
-    def add_fund_to_negative_then_calculate_shares(self, fund: float) -> dict(str, float):
+    def add_fund_to_negative_then_calculate_shares(self, fund: float) -> dict:
         num_shares = fund / self.cap_price
 
         num_positive = self.num_positive + num_shares
@@ -105,7 +105,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'returned_shares': returned_shares
         }
     
-    def remove_fund_from_negative_then_calculate_shares(self, shares: Share) -> dict(str, float):
+    def remove_fund_from_negative_then_calculate_shares(self, shares: Share) -> dict:
         assert(type(shares) == BinaryShare)
         assert(shares.share_type == 'negative')
 
@@ -123,12 +123,12 @@ class ConstantProductMarketMaker(MarketMakerInterface):
         }
     
 
-    def set_num_shares(self, num_positive, num_negative) -> dict(str, float):
-        self.num_positive = num_positive
-        self.num_negative = num_negative
+    def set_num_shares(self, pool_state: BinarySharePoolState) -> dict:
+        self.num_positive = pool_state.positive_shares
+        self.num_negative = pool_state.negative_shares
         return self.get_num_shares()
     
-    def get_num_shares(self) -> dict(str, float):
+    def get_num_shares(self) -> dict:
         return {
             'positive_shares': self.num_positive,
             'negative_shares': self.num_negative

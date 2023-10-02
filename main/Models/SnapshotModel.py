@@ -52,7 +52,7 @@ class BinarySnapshot(models.Model):
     _negative_market_size = models.FloatField(default = 0)
     _timestamp = models.DateTimeField(auto_now_add = True)
 
-    objects = models.Manager()
+    objects = BinarySnapshotManager()
     
 
     def get_positive_shares(self) -> float: 

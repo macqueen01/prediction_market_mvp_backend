@@ -15,6 +15,11 @@ class MarketSettings(object):
         self.num_positive = initial_fund / cap_price
         self.num_negative = initial_fund / cap_price
 
+        self.shares = {
+            'positive_shares': self.num_positive,
+            'negative_shares': self.num_negative,
+        }
+
         if (is_binary and is_constant_product):
             self.market_maker_type = 'binary_constant_product'
         else:

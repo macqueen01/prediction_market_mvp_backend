@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-from main.MarketMakers.shares import Share
+from main.MarketMakers.shares import SHARE_TYPE_BY_MARKET_TYPE, Share
 
 # Models from same module
 from .ReservePoolModel import ReservePool, PoolArgumentTranslator
@@ -11,22 +11,21 @@ from .SnapshotModel import Snapshot
 # Market settings
 from main.PredictionMarkets.settings import MarketSettings 
 
-    
-
 class PredictionMarketManager(models.Manager):
     def create_market(self, title, description, start_date, end_date, settings: MarketSettings):
 
         # make market maker for this market with specified settings
         market_maker = MarketMaker.objects.create_market_maker(settings)
-        shares = market_maker.get_num_shares()
+        shares = settings.shares
         # make reserve pool for this market with the shares from market maker
         reserve_pool = ReservePool.objects.initialize_pool(
             initial_positive = shares['positive_shares'],
-            initial_negative = shares['negative_shares']
+            initial_negative = shares['negative_shares'],
+            market_type = settings.market_maker_type
         )
 
         # make snapshot for this market
-        Snapshot.objects.create(market_type = settings.market_maker_type)
+        snapshot = Snapshot.objects.create(market_type = settings.market_maker_type)
 
         prediction_market = self.create(
             title = title,
@@ -36,7 +35,8 @@ class PredictionMarketManager(models.Manager):
             created_at = timezone.now(),
             is_active = 0,
             reserve_pool = reserve_pool,
-            market_maker = market_maker
+            market_maker = market_maker,
+            snapshot = snapshot
         )
         prediction_market.save()
         # take snapshot of the initial state of the market
@@ -76,18 +76,21 @@ class PredictionMarket(models.Model):
 
     objects = PredictionMarketManager()
 
-    def activate(self):
+    def activate(self) -> None:
         self.is_active = 1
         self.save()
 
-    def deactivate(self):
+    def deactivate(self) -> None:
         self.is_active = 0
         self.save()
 
-    def get_current_shares(self):
-        return self.reserve_pool.get_current_shares()
+    def get_share_options(self) -> list:
+        return self.reserve_pool.get_share_options()
+
+    def get_current_shares(self) -> dict:
+        return self.reserve_pool.get_pool_state()()
     
-    def take_snapshot(self):
+    def take_snapshot(self) -> Snapshot:
         """
         Takes a snapshot of the current state of the market
         """
@@ -96,19 +99,23 @@ class PredictionMarket(models.Model):
 
         assert(snapshot is not None)
 
-        snapshot_arguments = PoolArgumentTranslator.translate(reserve_pool=self.reserve_pool, market_type=market_type)
+        snapshot_arguments = PoolArgumentTranslator().translate(reserve_pool=self.reserve_pool, market_type=market_type)
         
         snapshot.record_snapshot(**snapshot_arguments)
         return snapshot
+
     
-    def _buy_positive(self, fund: float) -> Share:
+    def buy_positive(self, fund: float) -> Share:
 
         assert(self.is_active == 1)
 
-        pool_state = self.market_maker.simulate_positive_buy(fund)
+        # get current share state in the reserve pool
+        pool_state = self.reserve_pool.get_pool_state()
+
+        pool_state = self.market_maker.simulate_positive_buy(fund, pool_state)
         pool_positive_shares, pool_negative_shares, return_shares = pool_state['positive_shares'], pool_state['negative_shares'], pool_state['returned_shares']
         
-        assert(return_shares().share_type == 'positive')
+        assert(return_shares.share_type == 'positive')
 
         reserve_pool = self.reserve_pool.set_shares(pool_positive_shares, pool_negative_shares)
         reserve_pool.increase_market_size(fund, 'positive')
@@ -118,14 +125,17 @@ class PredictionMarket(models.Model):
 
         return return_shares
     
-    def _buy_negative(self, fund: float) -> Share:
+    def buy_negative(self, fund: float) -> Share:
 
         assert(self.is_active == 1)
 
-        pool_state = self.market_maker.simulate_negative_buy(fund)
+        # get current share state in the reserve pool
+        pool_state = self.reserve_pool.get_pool_state()
+
+        pool_state = self.market_maker.simulate_negative_buy(fund, pool_state)
         pool_positive_shares, pool_negative_shares, return_shares = pool_state['positive_shares'], pool_state['negative_shares'], pool_state['returned_shares']
         
-        assert(return_shares().share_type == 'negative')
+        assert(return_shares.share_type == 'negative')
 
         reserve_pool = self.reserve_pool.set_shares(pool_positive_shares, pool_negative_shares)
         reserve_pool.increase_market_size(fund, 'negative')
@@ -136,11 +146,14 @@ class PredictionMarket(models.Model):
         return return_shares
     
 
-    def _sell(self, shares: Share) -> float:
+    def sell(self, shares: Share) -> float:
 
         assert(self.is_active == 1)
 
-        pool_state = self.market_maker.simulate_sell(shares)
+        # get current share state in the reserve pool
+        pool_state = self.reserve_pool.get_pool_state()
+
+        pool_state = self.market_maker.simulate_sell(shares, pool_state)
 
         pool_positive_shares, pool_negative_shares, return_fund = pool_state['positive_shares'], pool_state['negative_shares'], pool_state['returned_fund']
 
@@ -159,12 +172,20 @@ class PredictionMarket(models.Model):
         Calculates an estimated price for one share at the given reserve pool state
         This value relies on the ratio of shares in the reserve pool
         """
-        return self.market_maker.get_estimated_price_per_share()
+        
+        # get current share state in the reserve pool
+        pool_state = self.reserve_pool.get_pool_state()
+
+        return self.market_maker.get_estimated_price_per_share(pool_state)
     
     def _get_exact_price_for_single_share(self) -> dict:
         """
         Calculates the exact price for one share at the given reserve pool state
         """
+
+        # get current share state in the reserve pool
+        pool_state = self.reserve_pool.get_pool_state(pool_state)
+
         return self.market_maker.get_exact_price_per_share()
     
     def _get_exact_share_prices(self, shares: Share) -> float:
@@ -172,5 +193,8 @@ class PredictionMarket(models.Model):
         # Check if shares is a valid share object
         assert(issubclass(type(shares), Share))
 
-        return self.market_maker.simulate_sell(shares)
+        # get current share state in the reserve pool
+        pool_state = self.reserve_pool.get_pool_state()
+
+        return self.market_maker.simulate_sell(shares, pool_state)
     
