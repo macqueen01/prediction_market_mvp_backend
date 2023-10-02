@@ -14,6 +14,7 @@ SHARE_TRANSLATION_BY_SHARE_TYPE = {
 }
 class Account(models.Model):
     fund = models.FloatField(default = 0)
+    portfolios = models.ManyToManyField(Portfolio, blank = True, related_name='account')
     created_at = models.DateTimeField(auto_now_add = True)
     is_active = models.IntegerField(default = 1)
 
@@ -36,6 +37,23 @@ class Account(models.Model):
         self.fund -= fund
         self.save()
 
+    def get_portfolio_by_market_and_share_type(self, market: PredictionMarket, share_type: int) -> Portfolio:
+        assert(self.is_active == 1)
+
+        query_result = self.portfolios.filter(market = market, share_type = share_type)
+
+        if query_result.exists():
+            return query_result.get()
+        
+        portfolio = Portfolio.objects.create_portfolio(
+            market = market, 
+            position_index = share_type, 
+            num_shares = 0.0, 
+            buying_price = 0.0)
+        self.portfolios.add(portfolio)
+        self.save()
+        return portfolio
+
     def add_share_to_portfolio(self, market: PredictionMarket, share: Share, fund_spent: float):
         share_info = SHARE_TRANSLATION_BY_SHARE_TYPE.get(type(share))(share)
         
@@ -44,7 +62,7 @@ class Account(models.Model):
 
         assert(self.is_active == 1)
 
-        portfolio = Portfolio.objects.get_or_create_portfolio(market, share_type, self)
+        portfolio = self.get_portfolio_by_market_and_share_type(market, share_type)
         portfolio.add_shares(num_shares = share_amount, price_bought = fund_spent)
 
     def remove_share_from_portfolio(self, market: PredictionMarket, share: Share, fund_received: float):
@@ -55,7 +73,7 @@ class Account(models.Model):
 
         assert(self.is_active == 1)
 
-        portfolio = Portfolio.objects.get_or_create_portfolio(market, share_type, self)
+        portfolio = self.get_portfolio_by_market_and_share_type(market, share_type)
         portfolio.remove_shares(num_shares = share_amount, price_sold = fund_received)
 
 

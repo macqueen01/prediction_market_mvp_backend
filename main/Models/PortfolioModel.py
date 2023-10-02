@@ -2,44 +2,29 @@ from django.db import models
 
 from main.MarketMakers.shares import Share
 
-from .AccountModel import Account
 from .PredictionMarketModel import PredictionMarket
 
 class PortfolioManager(models.Manager):
-    def create_portfolio(self, market: PredictionMarket, position_index: int, num_shares: float, buying_price: float):
+    def create_portfolio(self, 
+                         market: PredictionMarket, 
+                         position_index: int, 
+                         num_shares: float, 
+                         buying_price: float):
         portfolio = self.create(
             market = market,
             position_index = position_index,
             num_shares = num_shares,
-            average_buying_price = buying_price
+            average_buying_price = buying_price,
         )
         portfolio.save()
         return portfolio
-    
-    def get_or_create_portfolio(self, market: PredictionMarket, position_index: int, account: Account):
-        try:
-            portfolios = self.get_portfolio_by_account_and_market(account, market)
-            portfolio = portfolios.get(position_index = position_index)
-            return portfolio
-        except Portfolio.DoesNotExist:
-            return self.create_portfolio(market, position_index, 0, 0)
-    
-    def get_portfolio_by_account(self, account: Account) -> models.QuerySet:
-        return self.filter(account = account)
-    
-    def get_portfolio_by_market(self, market: PredictionMarket) -> models.QuerySet:
-        return self.filter(market = market)
-    
-    def get_portfolio_by_account_and_market(self, account: Account, market: PredictionMarket) -> models.QuerySet:
-        return self.filter(account = account, market = market)
-
 
 class Portfolio(models.Model):
     market = models.ForeignKey(PredictionMarket, on_delete = models.CASCADE, related_name = 'portfolios')
-    account = models.ForeignKey(Account, on_delete = models.CASCADE, related_name = 'portfolios')
     position_index = models.IntegerField(default = 0)
     num_shares = models.FloatField(default = 0)
     average_buying_price = models.FloatField(default = 0)
+    
 
     objects = PortfolioManager()
 
