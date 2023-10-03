@@ -5,10 +5,54 @@ from main.MarketMakers.shares import SHARE_TYPE_BY_MARKET_TYPE, Share
 from main.Models.AccountModel import Account
 from main.Models.PredictionMarketModel import PredictionMarket
 
-
+class OrderManager(models.Manager):
+    def _create_order(self, 
+                     market: PredictionMarket, 
+                     ordering_account: Account, 
+                     order_type: int, 
+                     share_option: int):
+        order = self.create(
+            market = market,
+            ordering_account = ordering_account,
+            order_type = order_type,
+            share_option = share_option
+        )
+        order.save()
+        return order
+    
+    def create_buy_order(self, 
+                         market: PredictionMarket, 
+                         ordering_account: Account, 
+                         share_option: int, 
+                         fund: float):
+        order = self._create_order(
+            market = market,
+            ordering_account = ordering_account,
+            order_type = 0,
+            share_option = share_option
+        )
+        order.fund = fund
+        order.save()
+        return order
+    
+    def create_sell_order(self, 
+                          market: PredictionMarket, 
+                          ordering_account: Account, 
+                          share_option: int, 
+                          num_shares: float):
+        order = self._create_order(
+            market = market,
+            ordering_account = ordering_account,
+            order_type = 1,
+            share_option = share_option
+        )
+        order.num_shares = num_shares
+        order.save()
+        return order
 class Order(models.Model):
     market = models.ForeignKey(PredictionMarket, on_delete=models.CASCADE)
     ordering_account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    # buy (order_type == 0) or sell (order_type == 1)
     order_type = models.IntegerField(default = 0)
     share_option = models.IntegerField(default = 0)
 
@@ -84,30 +128,5 @@ class Order(models.Model):
                     )
             }
 
-def execute_order(order: Order) -> Share | float:
-    """
-    Executes the order and updates the state of the market
-    """
-    assert(order.market.is_active == 1)
-
-    exchanged_asset: Share | float = None
-
-    if order.is_buy():
-        if order.share_option == 0:
-            exchanged_asset = order.market.buy_positive(order.fund)
-        elif order.share_option == 1:
-            exchanged_asset = order.market.buy_negative(order.fund)
-        else:
-            order.reject()
-            raise ValueError('Invalid share option')
-    elif order.is_sell():
-        exchanged_asset = order.market.sell(order.order_content['shares'])
-    else:
-        order.reject()
-        raise ValueError('Invalid order type')
-
-    order.resolve_order(exchanged_asset)
-    return exchanged_asset
-    
 
 

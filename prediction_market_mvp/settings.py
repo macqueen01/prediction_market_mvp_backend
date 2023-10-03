@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
+import os
+import boto3
+
+from prediction_market_mvp.storages import S3Storage
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,11 +32,16 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CORS_ORIGIN_ALLOW_ALL = True
+
 
 # Application definition
 
 INSTALLED_APPS = [
     'main.apps.MainConfig',
+    'auth_firebase.apps.AuthFirebaseConfig',
+    'rest_framework',
+    'storages',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -69,6 +79,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'prediction_market_mvp.wsgi.application'
+
+# Firebase Credentials
+
+FIREBASE_ACCOUNT_TYPE = os.environ.get('FIREBASE_ACCOUNT_TYPE')
+FIREBASE_PROJECT_ID = os.environ.get('FIREBASE_PROJECT_ID')
+FIREBASE_PRIVATE_KEY_ID = os.environ.get('FIREBASE_PRIVATE_KEY_ID')
+FIREBASE_PRIVATE_KEY = os.environ.get('FIREBASE_PRIVATE_KEY')
+FIREBASE_CLIENT_EMAIL = os.environ.get('FIREBASE_CLIENT_EMAIL')
+FIREBASE_CLIENT_ID = os.environ.get('FIREBASE_CLIENT_ID')
+FIREBASE_AUTH_URI = os.environ.get('FIREBASE_AUTH_URI')
+FIREBASE_TOKEN_URI = os.environ.get('FIREBASE_TOKEN_URI')
+FIREBASE_AUTH_PROVIDER_X509_CERT_URL = os.environ.get('FIREBASE_AUTH_PROVIDER_X509_CERT_URL')
+FIREBASE_CLIENT_X509_CERT_URL = os.environ.get('FIREBASE_CLIENT_X509_CERT_URL')
 
 
 # Database
@@ -121,6 +144,34 @@ AUTH_USER_MODEL = 'main.user'
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+DEFAULT_FILE_STORAGE = 'mockingJae_back.storages.LocalStorage'
+SCROLLS_S3_STORAGE = 'mockingJae_back.storages.S3Storage'
+
+# Create an S3 client instance
+s3_main_bucket = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_REGION')
+)
+
+# Create an S3 resource instance
+s3_resource = boto3.resource(
+    's3',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_REGION')
+)
+
+# Create an S3 storage instances
+s3_storage = S3Storage(
+    bucket_name=os.environ.get('AWS_STORAGE_BUCKET_NAME'),
+    custom_domain=os.environ.get('AWS_S3_CUSTOM_DOMAIN'),
+)
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

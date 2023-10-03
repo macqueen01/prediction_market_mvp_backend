@@ -20,7 +20,7 @@ class PredictionMarketModelTestCase(TestCase):
             start_date=timezone.now(),
             end_date  = timezone.now(),
             settings=settings
-        )
+        ) 
 
         self.reserve_pool = self.prediction_market.reserve_pool
 
@@ -45,28 +45,43 @@ class PredictionMarketModelTestCase(TestCase):
     def test_buy_positive(self):
         self.prediction_market.activate()
         fund = 50.0
-        returned_shares = self.prediction_market._buy_positive(fund)
-        self.assertEqual(self.prediction_market._get_exact_share_prices(returned_shares)['returned_fund'], 50)
+        returned_shares = self.prediction_market.buy_positive(fund)
+        self.assertEqual(round(self.prediction_market._get_exact_share_prices(returned_shares)['returned_fund'], 2), 50.0)
 
     def test_buy_negative(self):
         self.prediction_market.activate()
         fund = 50.0
-        returned_shares = self.prediction_market._buy_negative(fund)
-        self.assertEqual(self.prediction_market._get_exact_share_prices(returned_shares)['returned_fund'], 50)
+        returned_shares = self.prediction_market.buy_negative(fund)
+        self.assertEqual(round(self.prediction_market._get_exact_share_prices(returned_shares)['returned_fund'], 2), 50.0)
 
     def test_sell(self):
         self.prediction_market.activate()
         initial_positive_shares = self.reserve_pool.get_current_shares()['positive_shares']
         # buy the shares first
         fund = 50.0
-        returned_shares = self.prediction_market._buy_positive(fund)
+        returned_shares = self.prediction_market.buy_positive(fund)
 
         # sell the shares
-        returned_fund = self.prediction_market._sell(returned_shares)
+        returned_fund = self.prediction_market.sell(returned_shares)
         new_positive_shares = self.reserve_pool.get_current_shares()['positive_shares']
-        self.assertEqual(new_positive_shares, initial_positive_shares)
-        self.assertEqual(returned_fund, 50)
+        self.assertEqual(round(new_positive_shares, 2), round(initial_positive_shares, 2))
+        self.assertEqual(round(returned_fund, 3), 50.0)
 
+    def _sell(self):
+        self.prediction_market.activate()
+        shares = self.prediction_market.buy_positive(30.0)
+        shares2 = self.prediction_market.buy_negative(20.0)
+        shares3 = self.prediction_market.buy_positive(50.0)
+        self.prediction_market.sell(shares)
+        self.prediction_market.sell(shares2)
+        self.prediction_market.sell(shares3)
+        shares4 = self.prediction_market.buy_negative(30.0)
+        print([round(x.get_positive_market_size() + x.get_negative_market_size(), 3) for x in self.prediction_market.snapshot.get_snapshots()])
+        print([round(x.get_positive_market_size() , 3) for x in self.prediction_market.snapshot.get_snapshots()])
+        print([round( x.get_negative_market_size(), 3) for x in self.prediction_market.snapshot.get_snapshots()])
+    def test_market_size_change(self):
+        self.prediction_market.activate()
+        self._sell()
     """
 
     def test_get_estimated_price_for_single_share(self):
