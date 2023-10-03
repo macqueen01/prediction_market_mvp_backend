@@ -10,11 +10,13 @@ class ReservePoolManager(models.Manager):
         """
         reserved_pool_size is an initialy allocated amount of asset to the reserve pool
         """
+        constant = initial_positive * initial_negative
 
         reserve_pool = self.create(
             _positive = initial_positive,
             _negative = initial_negative,
             _total = initial_positive + initial_negative,
+            _constant = constant,
             market_maker_type = market_type
         )
 
@@ -26,6 +28,7 @@ class ReservePool(models.Model):
     _positive = models.FloatField(default = 0)
     _negative = models.FloatField(default = 0)
     _total = models.FloatField(default = 0)
+    _constant = models.FloatField(default = 0)
     market_maker_type = models.CharField(max_length = 120, default = 'binary_constant_product')
 
     _positive_market_size = models.FloatField(default = 0)
@@ -41,13 +44,13 @@ class ReservePool(models.Model):
         return self._total
     
     def get_constant(self):
-        return self._positive * self._negative
+        return self._constant
     
     def set_shares(self, positive, negative):
-        assert(positive * negative == self.get_constant())
+        assert(round(positive * negative, 3) == self.get_constant())
 
-        self._positive = positive
-        self._negative = negative
+        self._positive = round(positive, 3)
+        self._negative = self._constant / self._positive
         self._total = positive + negative
         self.save()
         return self

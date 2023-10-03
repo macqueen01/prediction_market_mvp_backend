@@ -1,10 +1,25 @@
+from collections.abc import MutableMapping
+from PIL import Image
+from typing import Any
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import BaseUserManager
 from django.utils import timezone
 
+from .AccountModel import Account
+
 
 class UserManager(BaseUserManager):
+
+    def get_or_create(self, defaults: MutableMapping[str, Any] | None = ..., **kwargs: Any) -> tuple[Any, bool]:
+        user, created = super().get_or_create(defaults, **kwargs)
+
+        if created: 
+            user.account = Account.objects.create_account()
+            user.account.activate()
+            user.save()
+        
+        return user, created
 
     def create_user_with_password(self, username, password):
         user = self.model(
@@ -50,6 +65,10 @@ class User(AbstractBaseUser):
     is_active = models.IntegerField(blank = True, null = True)
     is_staff = models.IntegerField(blank = True, null = True)
 
+    thumbnail = models.ImageField(upload_to = 'profile_image', blank = True, null = True)
+
+    account = models.ForeignKey(Account, on_delete = models.CASCADE, related_name='user', blank = True, null = True)
+
 
     email = models.CharField(max_length = 120, blank = True, null = True)
 
@@ -66,6 +85,11 @@ class User(AbstractBaseUser):
     
     def has_module_perms(self, app_label):
         return True
+    
+    def upload_thumbnail(self, thumbnail: Image.Image):
+        self.thumbnail = thumbnail
+        self.save()
+        return
 
     class Meta:
         db_table = 'auth_user'

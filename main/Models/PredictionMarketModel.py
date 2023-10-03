@@ -1,3 +1,5 @@
+from PIL import Image
+
 from django.db import models
 from django.utils import timezone
 
@@ -60,6 +62,7 @@ class PredictionMarketManager(models.Manager):
 class PredictionMarket(models.Model):
     title = models.CharField(default = 'Untitled Prediction Market', max_length = 500)
     description = models.TextField(default = 'No description')
+    thumbnail = models.ImageField(upload_to = 'profile_image', blank = True, null = True)
     start_date = models.DateTimeField()
 
     end_date = models.DateTimeField(blank=True, null=True)
@@ -84,11 +87,16 @@ class PredictionMarket(models.Model):
         self.is_active = 0
         self.save()
 
+    def set_thumbnail(self, thumbnail: Image.Image):
+        self.thumbnail = thumbnail
+        self.save()
+
     def get_share_options(self) -> list:
         return self.reserve_pool.get_share_options()
 
     def get_current_shares(self) -> dict:
         return self.reserve_pool.get_pool_state()()
+    
     
     def take_snapshot(self) -> Snapshot:
         """

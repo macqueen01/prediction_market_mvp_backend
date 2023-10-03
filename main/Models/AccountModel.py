@@ -1,6 +1,8 @@
+from django.utils import timezone
 from django.db import models
 from main.MarketMakers.shares import BinaryShare, Share
 
+from .WithdrawalQueueModel import WithdrawalQueue
 from .PortfolioModel import Portfolio, PortfolioManager
 from .PredictionMarketModel import PredictionMarket
 
@@ -12,11 +14,45 @@ SHARE_TRANSLATION_BY_SHARE_TYPE = {
         }
     }
 }
+
+class AccountManager(models.Manager):
+    
+    def create_account(self):
+        account = self.create(
+            fund = 0,
+            is_active = 0,
+            created_at = timezone.now()
+        )
+        account.save()
+        return account
+    
+    def transfer_fund(self, from_account, to_account, fund):
+        assert(from_account.is_active == 1)
+        assert(to_account.is_active == 1)
+        assert(from_account.fund >= fund)
+        from_account.withdraw_fund(fund)
+        to_account.get_fund(fund)
+        return
+    
+    def withdraw_fund(self, account, fund: float, bank_account: str, bank_code: str):
+        assert(account.is_active == 1)
+        assert(account.fund >= fund)
+        # adding the withdrawal request to the queue
+        WithdrawalQueue.objects.create_withdrawal(
+            amount = fund,
+            bank_account = bank_account,
+            bank_code = bank_code
+        )
+        account.withdraw_fund(fund)
+        return
+    
 class Account(models.Model):
     fund = models.FloatField(default = 0)
     portfolios = models.ManyToManyField(Portfolio, blank = True, related_name='account')
     created_at = models.DateTimeField(auto_now_add = True)
     is_active = models.IntegerField(default = 1)
+
+    objects = AccountManager()
 
     def activate(self) -> None:
         self.is_active = 1
@@ -76,6 +112,7 @@ class Account(models.Model):
         portfolio = self.get_portfolio_by_market_and_share_type(market, share_type)
         portfolio.remove_shares(num_shares = share_amount, price_sold = fund_received)
 
+    
 
 
 

@@ -53,7 +53,24 @@ class BinarySnapshot(models.Model):
     _timestamp = models.DateTimeField(auto_now_add = True)
 
     objects = BinarySnapshotManager()
+
+
+    def to_dict_without_timestamp(self) -> dict:
+        return {
+            'positive_shares': self._positive,
+            'negative_shares': self._negative,
+            'positive_market_size': self._positive_market_size,
+            'negative_market_size': self._negative_market_size,
+        }
     
+    def to_dict(self) -> dict:
+        return {
+            'positive_shares': self._positive,
+            'negative_shares': self._negative,
+            'positive_market_size': self._positive_market_size,
+            'negative_market_size': self._negative_market_size,
+            'timestamp': self._timestamp
+        }
 
     def get_positive_shares(self) -> float: 
         return self._positive
