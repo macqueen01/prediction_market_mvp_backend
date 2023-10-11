@@ -1,3 +1,4 @@
+from typing import Dict
 from django.db import models
 from main.MarketMakers.interface import MarketMakerInterface
 from main.MarketMakers.shares import Share, SharePoolState
@@ -58,15 +59,15 @@ class MarketMaker(models.Model):
         market_maker.set_num_shares(pool_state=pool_state)
         return market_maker
     
-    def simulate_positive_buy(self, fund, pool_state: SharePoolState) -> Share:
+    def simulate_positive_buy(self, fund, pool_state: SharePoolState) -> Dict[str, float | Share]:
         market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         return market_maker.add_fund_to_positive_then_calculate_shares(fund)
     
-    def simulate_negative_buy(self, fund, pool_state: SharePoolState) -> Share:
+    def simulate_negative_buy(self, fund, pool_state: SharePoolState) -> Dict[str, float | Share]:
         market_maker = self._get_market_maker_interactor(pool_state=pool_state)
         return market_maker.add_fund_to_negative_then_calculate_shares(fund)
     
-    def simulate_sell(self, shares: Share, pool_state: SharePoolState) -> float:
+    def simulate_sell(self, shares: Share, pool_state: SharePoolState) -> Dict[str, float]:
         # Check if shares is a valid share object
         assert(issubclass(type(shares), Share))
 

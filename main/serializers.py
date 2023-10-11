@@ -1,3 +1,4 @@
+from collections import defaultdict
 from django.forms import ImageField
 from rest_framework import serializers
 
@@ -63,7 +64,7 @@ class MarketBrowseSerializer(serializers.ModelSerializer):
 class SinglePortfolioSerializer(serializers.ModelSerializer):
     position_index = serializers.IntegerField()
     num_shares = serializers.FloatField()
-    average_price = serializers.FloatField()
+    average_buying_price = serializers.FloatField()
 
     market_id = serializers.SerializerMethodField()
     market_title = serializers.SerializerMethodField()
@@ -91,7 +92,7 @@ class SinglePortfolioSerializer(serializers.ModelSerializer):
     
     def get_probability_of_share_type(self, obj):
         reserve_pool = obj.market.reserve_pool
-        share_type = reserve_pool.get_share_options()[self.position_index]
+        share_type = reserve_pool.get_share_options()[obj.position_index]
         probability = reserve_pool.get_probability_of_share_type(share_type)
         parsed_probability = round(probability, 3)
         return parsed_probability
@@ -107,7 +108,7 @@ class SinglePortfolioSerializer(serializers.ModelSerializer):
         fields = (
             'position_index',
             'num_shares',
-            'average_price',
+            'average_buying_price',
             'market_id',
             'market_title',
             'market_image',
@@ -118,4 +119,15 @@ class SinglePortfolioSerializer(serializers.ModelSerializer):
         )
 
 
+# Used to organize serialized portfolios by market id and then by position
+def MultiplePortfolioSerialize(serialized_portfolios: SinglePortfolioSerializer):
+
+    portfolios_by_market_id = defaultdict(dict)
+
+    for portfolio in serialized_portfolios.data:
+        market_id = portfolio['market_id']
+        portfolios_by_market_id[market_id][portfolio['position_index']] = portfolio
     
+    portfolios_by_market_id = dict(portfolios_by_market_id)
+
+    return portfolios_by_market_id

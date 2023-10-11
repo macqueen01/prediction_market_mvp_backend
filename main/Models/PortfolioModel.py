@@ -68,10 +68,12 @@ class Portfolio(models.Model):
         return self.num_shares
     
     def get_current_value(self) -> float:
-        share : Share = SHARE_TYPE_BY_MARKET_TYPE.get(self.market.market_type)(share_type=self.position_index, share_amount=self.num_shares)
-        price = self.market._get_exact_share_prices(share)
+        share : Share = SHARE_TYPE_BY_MARKET_TYPE.get(self.market.market_maker.market_maker_type)(share_type=self.position_index, share_amount=self.num_shares)
+        price = self.market._get_exact_share_prices(share)['returned_fund']
+        price = round(price, 3)
 
         return price
+
 
 
      
