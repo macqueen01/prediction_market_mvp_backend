@@ -95,6 +95,14 @@ class ReservePool(models.Model):
             'negative_shares': self.get_negative(),
         }
     
+    def get_probability_of_share_type(self, share_type: str):
+        if share_type == 'positive':
+            return self._negative / self._total
+        elif share_type == 'negative':
+            return self._positive / self._total
+        else:
+            raise Exception('Invalid share type')
+    
     def get_pool_state(self):
         return POOL_STATE_TYPE.get(self.market_maker_type)(**self.get_current_shares())
     

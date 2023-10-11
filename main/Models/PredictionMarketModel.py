@@ -1,7 +1,10 @@
+from datetime import datetime
 from PIL import Image
 
 from django.db import models
 from django.utils import timezone
+
+from prediction_market_mvp import settings
 
 from main.MarketMakers.shares import SHARE_TYPE_BY_MARKET_TYPE, Share
 
@@ -62,12 +65,13 @@ class PredictionMarketManager(models.Manager):
 class PredictionMarket(models.Model):
     title = models.CharField(default = 'Untitled Prediction Market', max_length = 500)
     description = models.TextField(default = 'No description')
-    thumbnail = models.ImageField(upload_to = 'profile_image', blank = True, null = True)
+    thumbnail = models.ImageField(storage = settings.s3_storage, upload_to = 'profile_image', blank = True, null = True, default=None)
     start_date = models.DateTimeField()
 
-    end_date = models.DateTimeField(blank=True, null=True)
+    end_date = models.DateTimeField(blank=True, null=True, default=None)
     created_at = models.DateTimeField()
     is_active = models.IntegerField(default = 1)
+    resolved_index = models.IntegerField(blank=True, null=True, default=None)
 
     reserve_pool = models.ForeignKey(ReservePool, on_delete=models.CASCADE)
     market_maker = models.ForeignKey(MarketMaker, on_delete=models.CASCADE)
@@ -91,11 +95,22 @@ class PredictionMarket(models.Model):
         self.thumbnail = thumbnail
         self.save()
 
+    def is_resolved(self) -> bool:
+        return self.resolved_index is not None 
+
     def get_share_options(self) -> list:
         return self.reserve_pool.get_share_options()
 
     def get_current_shares(self) -> dict:
         return self.reserve_pool.get_pool_state()()
+    
+    def get_snapshot_a_day_ago(self) -> Snapshot:
+        snapshots_of_one_day_ago = self.snapshot.get_snapshots().filter(_timestamp__lte=datetime.fromtimestamp(timezone.now().timestamp() - timezone.timedelta(days=1).total_seconds()))
+
+        if (snapshots_of_one_day_ago.count() == 0):
+            return None
+        
+        return snapshots_of_one_day_ago.order_by('-_timestamp')[0]
     
     
     def take_snapshot(self) -> Snapshot:

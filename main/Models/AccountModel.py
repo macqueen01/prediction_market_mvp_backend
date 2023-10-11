@@ -7,12 +7,12 @@ from .PortfolioModel import Portfolio, PortfolioManager
 from .PredictionMarketModel import PredictionMarket
 
 SHARE_TRANSLATION_BY_SHARE_TYPE = {
-    BinaryShare: {
+    BinaryShare: 
         lambda share: {
             'share_type': 0 if share.share_type == 'positive' else 1,
             'share_amount': share.share_amount
         }
-    }
+    
 }
 
 class AccountManager(models.Manager):
@@ -26,7 +26,7 @@ class AccountManager(models.Manager):
         account.save()
         return account
     
-    def transfer_fund(self, from_account, to_account, fund):
+    def transfer_fund(self, from_account, to_account, fund) -> None:
         assert(from_account.is_active == 1)
         assert(to_account.is_active == 1)
         assert(from_account.fund >= fund)
@@ -34,17 +34,17 @@ class AccountManager(models.Manager):
         to_account.get_fund(fund)
         return
     
-    def withdraw_fund(self, account, fund: float, bank_account: str, bank_code: str):
+    def withdraw_fund(self, account, fund: float, bank_account: str, bank_code: str) -> WithdrawalQueue:
         assert(account.is_active == 1)
         assert(account.fund >= fund)
         # adding the withdrawal request to the queue
-        WithdrawalQueue.objects.create_withdrawal(
+        withdrawal_request = WithdrawalQueue.objects.create_withdrawal(
             amount = fund,
             bank_account = bank_account,
             bank_code = bank_code
         )
         account.withdraw_fund(fund)
-        return
+        return withdrawal_request
     
 class Account(models.Model):
     fund = models.FloatField(default = 0)
@@ -76,7 +76,7 @@ class Account(models.Model):
     def get_portfolio_by_market_and_share_type(self, market: PredictionMarket, share_type: int) -> Portfolio:
         assert(self.is_active == 1)
 
-        query_result = self.portfolios.filter(market = market, share_type = share_type)
+        query_result = self.portfolios.filter(market = market, position_index = share_type)
 
         if query_result.exists():
             return query_result.get()

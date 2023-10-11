@@ -40,6 +40,8 @@ class WithdrawalQueue(models.Model):
     withdrawing_bank_account = models.CharField(default = '', max_length = 120)
     withdrawing_bank_code = models.CharField(default = '', max_length = 120)
 
+    objects = WithdrawalQueueManager()
+
     def is_waiting(self) -> bool:
         if self.is_processed == 0:
             return True

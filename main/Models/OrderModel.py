@@ -1,4 +1,4 @@
-from datetime import timezone
+from django.utils import timezone
 from django.db import models
 
 from main.MarketMakers.shares import SHARE_TYPE_BY_MARKET_TYPE, Share
@@ -64,6 +64,8 @@ class Order(models.Model):
 
     is_rejected = models.IntegerField(default = 0)
 
+    objects = OrderManager()
+
     def is_waiting(self) -> bool:
         if self.resolved_at is None and self.is_rejected == 0:
             return True
@@ -96,7 +98,7 @@ class Order(models.Model):
             # fund transfer and portfolio update (decrease shares, increase funds)
             self.ordering_account.get_fund(fund = exchanged_asset)
             self.ordering_account.remove_share_from_portfolio(market = self.market, 
-                                                              share = self.order_content['shares'],
+                                                              share = self.order_content()['shares'],
                                                               fund_received=exchanged_asset)
             
         else:
