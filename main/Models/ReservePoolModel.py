@@ -95,7 +95,7 @@ class ReservePool(models.Model):
             'negative_shares': self.get_negative(),
         }
     
-    def get_probability_of_share_type(self, share_type: str):
+    def get_probability_of_share_type(self, share_type: str) -> float:
         if share_type == 'positive':
             return self._negative / self._total
         elif share_type == 'negative':

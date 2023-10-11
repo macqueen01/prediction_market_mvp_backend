@@ -13,7 +13,7 @@ class UserManager(BaseUserManager):
 
     def get_or_create(self, defaults: MutableMapping[str, Any] | None = None, **kwargs: dict) -> tuple[Any, bool]:
         user, created = super().get_or_create(defaults, **kwargs)
-        
+
         if created: 
             user.account = Account.objects.create_account()
             user.created_at = timezone.now()
@@ -52,6 +52,9 @@ class UserManager(BaseUserManager):
         user.username = username
         user.save()
         return user
+    
+    def get_user_from_id(self, user_id):
+        return self.get(id = user_id)
 
     
     

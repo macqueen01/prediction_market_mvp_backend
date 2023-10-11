@@ -1,6 +1,8 @@
 from .shares import BinaryShare, BinarySharePoolState, Share
 from .interface import MarketMakerInterface
 
+from typing import Dict
+
 from main.utils import equationroots
 
 class ConstantProductMarketMaker(MarketMakerInterface):
@@ -53,7 +55,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'negative_share_price': negative_share_price
         }
 
-    def add_fund_to_positive_then_calculate_shares(self, fund: float) -> dict:
+    def add_fund_to_positive_then_calculate_shares(self, fund: float) -> Dict[str, float | BinaryShare]:
         num_shares = fund / self.cap_price
 
         num_positive = self.num_positive + num_shares
@@ -70,7 +72,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             'returned_shares': returned_shares
         }
     
-    def remove_fund_from_positive_then_calculate_shares(self, shares: Share) -> dict:
+    def remove_fund_from_positive_then_calculate_shares(self, shares: Share) -> Dict[str, float]:
         assert(type(shares) == BinaryShare)
         assert(shares.share_type == 'positive')
 
@@ -88,7 +90,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
         }
     
 
-    def add_fund_to_negative_then_calculate_shares(self, fund: float) -> dict:
+    def add_fund_to_negative_then_calculate_shares(self, fund: float) -> Dict[str, float | BinaryShare]:
         num_shares = fund / self.cap_price
 
         num_positive = self.num_positive + num_shares
