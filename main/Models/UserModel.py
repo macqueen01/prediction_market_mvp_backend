@@ -11,11 +11,12 @@ from .AccountModel import Account
 
 class UserManager(BaseUserManager):
 
-    def get_or_create(self, defaults: MutableMapping[str, Any] | None = ..., **kwargs: Any) -> tuple[Any, bool]:
+    def get_or_create(self, defaults: MutableMapping[str, Any] | None = None, **kwargs: dict) -> tuple[Any, bool]:
         user, created = super().get_or_create(defaults, **kwargs)
-
+        
         if created: 
             user.account = Account.objects.create_account()
+            user.created_at = timezone.now()
             user.account.activate()
             user.save()
         
@@ -60,7 +61,7 @@ class User(AbstractBaseUser):
     password = models.CharField(max_length = 128, null = True)
     username = models.CharField(max_length = 120, unique = True)
     last_login = models.DateTimeField(blank = True, null = True)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(blank = True, null = True)
     is_superuser = models.IntegerField(blank = True, null = True)
     is_active = models.IntegerField(blank = True, null = True)
     is_staff = models.IntegerField(blank = True, null = True)

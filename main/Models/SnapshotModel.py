@@ -35,7 +35,8 @@ class BinarySnapshotManager(models.Manager):
             _negative = negative_shares,
             _positive_market_size = positive_market_size,
             _negative_market_size = negative_market_size,
-            _timestamp = timezone.now()
+            _timestamp = timezone.now(),
+            float_timestamp = timezone.now().timestamp()
         )
         binary_snapshot.save()
         return binary_snapshot
@@ -51,6 +52,7 @@ class BinarySnapshot(models.Model):
     _positive_market_size = models.FloatField(default = 0)
     _negative_market_size = models.FloatField(default = 0)
     _timestamp = models.DateTimeField(auto_now_add = True)
+    float_timestamp = models.FloatField(default = 0)
 
     objects = BinarySnapshotManager()
 

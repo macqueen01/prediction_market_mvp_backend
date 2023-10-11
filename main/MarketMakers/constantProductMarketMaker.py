@@ -25,7 +25,7 @@ class ConstantProductMarketMaker(MarketMakerInterface):
             num_positive = self.num_positive
             num_negative = self.num_negative + share.share_amount
 
-        delta_price = min(equationroots(1, - (num_positive + num_negative), num_positive * num_negative - self.constant))
+        delta_price = min(equationroots(1, - (num_positive + num_negative), num_positive * num_negative - self.constant)) 
         
         return delta_price
     

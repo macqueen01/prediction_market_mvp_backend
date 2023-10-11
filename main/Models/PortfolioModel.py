@@ -1,6 +1,6 @@
 from django.db import models
 
-from main.MarketMakers.shares import Share
+from main.MarketMakers.shares import SHARE_TYPE_BY_MARKET_TYPE, Share
 
 from .PredictionMarketModel import PredictionMarket
 
@@ -67,6 +67,12 @@ class Portfolio(models.Model):
     def get_num_shares(self) -> float:
         return self.num_shares
     
+    def get_current_value(self) -> float:
+        share : Share = SHARE_TYPE_BY_MARKET_TYPE.get(self.market.market_type)(share_type=self.position_index, share_amount=self.num_shares)
+        price = self.market._get_exact_share_prices(share)
+
+        return price
+
 
      
 

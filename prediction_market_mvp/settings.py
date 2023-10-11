@@ -13,9 +13,14 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 
 import os
+from dotenv import load_dotenv
 import boto3
 
+
 from prediction_market_mvp.storages import S3Storage
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,8 +44,8 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 INSTALLED_APPS = [
     'main.apps.MainConfig',
-    'auth_firebase.apps.AuthFirebaseConfig',
     'rest_framework',
+    'corsheaders',
     'storages',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -53,6 +58,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -77,6 +83,9 @@ TEMPLATES = [
         },
     },
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 WSGI_APPLICATION = 'prediction_market_mvp.wsgi.application'
 
@@ -145,8 +154,8 @@ AUTH_USER_MODEL = 'main.user'
 
 STATIC_URL = 'static/'
 
-DEFAULT_FILE_STORAGE = 'mockingJae_back.storages.LocalStorage'
-SCROLLS_S3_STORAGE = 'mockingJae_back.storages.S3Storage'
+DEFAULT_FILE_STORAGE = 'prediction_market_mvp.storages.LocalStorage'
+SCROLLS_S3_STORAGE = 'prediction_market_mvp.S3Storage'
 
 # Create an S3 client instance
 s3_main_bucket = os.environ.get("AWS_STORAGE_BUCKET_NAME")

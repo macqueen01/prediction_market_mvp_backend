@@ -1,5 +1,5 @@
-from django.db.models import Min, F, ExpressionWrapper, IntegerField, Case, When, Value, OuterRef, Subquery
-
+from django.db.models import Min, F, ExpressionWrapper, IntegerField, Case, When, Value, OuterRef, Subquery, Func
+from django.db.models.functions import RowNumber, Floor
 from main.models import *
 from django.utils import timezone
 
@@ -74,7 +74,7 @@ def execute_order(order: Order) -> Share | float:
             order.reject()
             raise ValueError('Invalid share option')
     elif order.is_sell():
-        exchanged_asset = order.market.sell(order.order_content['shares'])
+        exchanged_asset = order.market.sell(order.order_content()['shares'])
     else:
         order.reject()
         raise ValueError('Invalid order type')
@@ -94,6 +94,7 @@ def browse_portfolios_of_account_by_market(account: Account, market: PredictionM
     portfolios = browse_portfolio_of_account(account)
     return portfolios.filter(market = market)
 
+
 def _portfolio_to_share(portfolio: Portfolio) -> Share:
     share_factory = SHARE_TYPE_BY_MARKET_TYPE.get(portfolio.market.market_maker.market_maker_type)
     shares = share_factory(
@@ -101,6 +102,11 @@ def _portfolio_to_share(portfolio: Portfolio) -> Share:
         share_amount=portfolio.num_shares
     )
     return shares
+
+def get_estimated_current_share_price_of_portfolio(portfolio: Portfolio) -> float:
+    market = portfolio.market
+    share = _portfolio_to_share(portfolio)
+    return market._get_exact_share_prices(share)
 
 def get_estimated_current_share_prices_of_account(account: Account) -> dict:
     portfolios = browse_portfolio_of_account(account)
@@ -142,57 +148,47 @@ def current_market_pool_state(market: PredictionMarket) -> dict:
 def withdraw_fund_from_account(account: Account, fund: float, bank_account: str, bank_code: str) -> None:
     Account.withdraw_fund(account, fund, bank_account, bank_code)
 
-def _date_period(start_date: datetime, end_date: datetime, num_periods: int):
-    assert(num_periods > 0)
-    assert(start_date < end_date)
-
-    period_duration = (end_date - start_date) / num_periods
-
-    period_list = []
-
-    for i in range(num_periods):
-        period_list.append(start_date + i * period_duration)
-
-    return period_list
-
-def _get_base_period(date_period: list, date: datetime) -> datetime:
-    return min([base - date for base in date_period if base > date])
 
 def _trimed_snapshots_by_sub_periods(market: PredictionMarket, start_date: datetime, end_date: datetime, num_sub_intervals: int) -> tuple:
     assert(num_sub_intervals > 0)
+    sampled_snapshots = market.snapshot.get_snapshots().annotate(
+        period = FloorInterval(
+            given_date=F('float_timestamp'),
+            start_date=start_date.timestamp(),
+            end_date=end_date.timestamp(),
+            num_intervals=num_sub_intervals
+        )
+    )
 
-    intervals = _date_period(start_date, end_date, num_sub_intervals)
+    subquery = sampled_snapshots.filter(period=OuterRef('period')).order_by('float_timestamp').values('float_timestamp')[:1]
 
-    unique_snapshot_in_sub_period = market.snapshot.get_snapshots().filter(
-        period = OuterRef('period')
-    ).order_by('id').values('id')[:1]
+    # Final query to select one snapshot for each period
+    result = sampled_snapshots.filter(float_timestamp=Subquery(subquery))
 
-    sampled_snapshots = market.snapshot.get_snapshots().filter(
-        _timestamp__gte = start_date,
-        _timestamp__lte = end_date,
-    ).annotate(
-        period = _get_base_period(intervals, F('_timestamp')),
-    ).filter(
-        id__in = Subquery(unique_snapshot_in_sub_period)
-    ).order_by('_timestamp')
+    return result
 
-    return sampled_snapshots, intervals
-
-def _snapshots_to_dict(snapshots: models.QuerySet, intervals: list) -> dict:
-    intervals = dict.fromkeys(intervals, None)
+def _snapshots_to_dict(snapshots: models.QuerySet) -> dict:
+    intervals = {}
 
     for snapshot in snapshots:
-        intervals[snapshot.period] = snapshot.to_dict_without_timestamp()
+        intervals[snapshot.period] = snapshot.to_dict()
     
     return intervals
 
 def view_entire_market_snapshot(market: PredictionMarket) -> dict:
     snapshots = market.snapshot.get_snapshots()
+
     start_date = snapshots.first()._timestamp
     end_date = snapshots.last()._timestamp
+
+    # Error here writing the code.
+    # start_date should be snapshots.last()._timestamp
+    # end_date should be snapshots.first()._timestamp
+
+    num_sub_intervals = 50
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, start_date, end_date, 50)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots = _trimed_snapshots_by_sub_periods(market, start_date, end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': start_date, 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
 
 def view_past_three_months_snapshot(market: PredictionMarket) -> dict:
     snapshots = market.snapshot.get_snapshots()
@@ -200,12 +196,14 @@ def view_past_three_months_snapshot(market: PredictionMarket) -> dict:
     end_date = snapshots.last()._timestamp
     current_date = timezone.now()
 
+    num_sub_intervals = 50
+
     # check if the market is older than 3 months
     if (current_date - start_date).days < 90:
         raise ValueError('The market is not older than 3 months')
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=90), end_date, 50)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=90), end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': current_date - datetime.timedelta(days=90), 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
 
 
 def view_past_one_month_snapshot(market: PredictionMarket) -> dict:
@@ -214,12 +212,14 @@ def view_past_one_month_snapshot(market: PredictionMarket) -> dict:
     end_date = snapshots.last()._timestamp
     current_date = timezone.now()
 
+    num_sub_intervals = 50
+
     # check if the market is older than 1 month
     if (current_date - start_date).days < 30:
         raise ValueError('The market is not older than 1 month')
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=30), end_date, 50)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=30), end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': current_date - datetime.timedelta(days=30), 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
 
 def view_past_one_week_snapshot(market: PredictionMarket) -> dict:
     snapshots = market.snapshot.get_snapshots()
@@ -227,30 +227,35 @@ def view_past_one_week_snapshot(market: PredictionMarket) -> dict:
     end_date = snapshots.last()._timestamp
     current_date = timezone.now()
 
+    num_sub_intervals = 50
+
     # check if the market is older than 1 week
     if (current_date - start_date).days < 7:
         raise ValueError('The market is not older than 1 week')
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=7), end_date, 50)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=7), end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': current_date - datetime.timedelta(days=7), 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
 
 def view_past_two_days_snapshot(market: PredictionMarket) -> dict:
     snapshots = market.snapshot.get_snapshots()
     start_date = snapshots.first()._timestamp
     end_date = snapshots.last()._timestamp
     current_date = timezone.now()
+
+    num_sub_intervals = 50
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=2), end_date, 50)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=2), end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': current_date - datetime.timedelta(days=2), 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
 
 def view_past_one_day_snapshot(market: PredictionMarket) -> dict:
     snapshots = market.snapshot.get_snapshots()
-    start_date = snapshots.first()._timestamp
     end_date = snapshots.last()._timestamp
     current_date = timezone.now()
+
+    num_sub_intervals = 50
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=1), end_date, 50)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots = _trimed_snapshots_by_sub_periods(market, current_date - datetime.timedelta(days=1), end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': current_date - datetime.timedelta(days=1), 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
 
 def view_past_snapshots_for_markets_younger_than_one_day(market: PredictionMarket) -> dict:
     snapshots = market.snapshot.get_snapshots()
@@ -258,10 +263,37 @@ def view_past_snapshots_for_markets_younger_than_one_day(market: PredictionMarke
     end_date = snapshots.last()._timestamp
     current_date = timezone.now()
 
+    num_sub_intervals = 20
+
     # check if the market is older than 1 day
     if (current_date - start_date).days > 1:
         raise ValueError('The market is older than 1 day')
     
-    snapshots, intervals = _trimed_snapshots_by_sub_periods(market, start_date, end_date, 20)
-    return _snapshots_to_dict(snapshots, intervals)
+    snapshots = _trimed_snapshots_by_sub_periods(market, start_date, end_date, num_sub_intervals)
+    return {'snapshots' : _snapshots_to_dict(snapshots), 'start_date': start_date, 'end_date': end_date, 'num_sub_intervals': num_sub_intervals}
     
+
+
+
+# Databse functions
+
+class FloorInterval(Func):
+    function = 'FLOOR'
+    template = "%(function)s(%(expressions)s)"
+    output_field = models.FloatField()
+
+    def __init__(self, given_date, start_date, end_date, num_intervals, **extra):
+        interval_duration = start_date - end_date
+        
+        step_duration = interval_duration / num_intervals
+        
+        floor_interval_number = Floor(
+            (given_date - end_date) / step_duration,
+            output_field=models.FloatField()
+        )
+        greatest_smaller_start_date = end_date + floor_interval_number * step_duration
+
+        super().__init__(
+            greatest_smaller_start_date,
+            **extra
+        )
